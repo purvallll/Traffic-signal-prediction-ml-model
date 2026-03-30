@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TrafficIQ — Signal Prediction</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c0f;
+    --surface: #111418;
+    --border: #1e2329;
+    --green: #00e87a;
+    --orange: #ff8c42;
+    --red: #ff3f5b;
+    --muted: #4a5568;
+    --text: #e2e8f0;
+    --dim: #718096;
+    --mono: 'Space Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,232,122,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,232,122,0.03) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 3rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .logo {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .logo-mark {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--green);
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+  }
+
+  h1 {
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.03em;
+  }
+
+  h1 span { color: var(--green); }
+
+  .status-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--dim);
+    border: 1px solid var(--border);
+    padding: 0.5rem 1rem;
+    border-radius: 2px;
+    background: var(--surface);
+  }
+
+  .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* Layout */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+
+  @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1.75rem;
+  }
+
+  .card-title {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .card-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Form fields */
+  .field { margin-bottom: 1.2rem; }
+
+  label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 0.5rem;
+  }
+
+  select, input[type="number"] {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    padding: 0.65rem 0.9rem;
+    border-radius: 2px;
+    outline: none;
+    appearance: none;
+    transition: border-color 0.2s;
+  }
+
+  select:focus, input[type="number"]:focus {
+    border-color: var(--green);
+    box-shadow: 0 0 0 2px rgba(0,232,122,0.08);
+  }
+
+  .field-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1rem;
+  }
+
+  /* Predict button */
+  .predict-btn {
+    width: 100%;
+    padding: 1rem;
+    background: var(--green);
+    color: #000;
+    border: none;
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: 1rem;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    border-radius: 2px;
+    margin-top: 0.5rem;
+    transition: opacity 0.2s, transform 0.1s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .predict-btn:hover { opacity: 0.9; }
+  .predict-btn:active { transform: scale(0.99); }
+  .predict-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .predict-btn .spinner {
+    display: none;
+    width: 18px; height: 18px;
+    border: 2px solid rgba(0,0,0,0.3);
+    border-top-color: #000;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    margin: 0 auto;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Result card */
+  .result-card {
+    grid-column: 1 / -1;
+    border-color: var(--border);
+    display: none;
+    animation: fadeUp 0.4s ease;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .result-card.visible { display: block; }
+
+  .result-main {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    flex-wrap: wrap;
+  }
+
+  .big-number {
+    font-family: var(--mono);
+    font-size: clamp(3.5rem, 8vw, 5.5rem);
+    font-weight: 700;
+    line-height: 1;
+    transition: color 0.4s;
+  }
+
+  .big-unit {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--dim);
+    display: block;
+    margin-top: 0.4rem;
+    letter-spacing: 0.2em;
+  }
+
+  .result-meta { flex: 1; min-width: 200px; }
+
+  .traffic-level {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.4rem 1rem 0.4rem 0.6rem;
+    border-radius: 2px;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 0.75rem;
+  }
+
+  .level-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  .traffic-level.green-level  { background: rgba(0,232,122,0.12);  color: var(--green);  }
+  .traffic-level.orange-level { background: rgba(255,140,66,0.12);  color: var(--orange); }
+  .traffic-level.red-level    { background: rgba(255,63,91,0.12);   color: var(--red);    }
+
+  .level-dot.green  { background: var(--green);  box-shadow: 0 0 6px var(--green); }
+  .level-dot.orange { background: var(--orange); box-shadow: 0 0 6px var(--orange); }
+  .level-dot.red    { background: var(--red);    box-shadow: 0 0 6px var(--red); }
+
+  .advice-text {
+    font-size: 1rem;
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  /* Gauge bar */
+  .gauge-wrap { margin-top: 1.5rem; }
+
+  .gauge-label {
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--dim);
+    margin-bottom: 0.5rem;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .gauge-track {
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .gauge-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.8s cubic-bezier(0.16,1,0.3,1), background 0.4s;
+  }
+
+  /* History */
+  .history-list { display: flex; flex-direction: column; gap: 0.75rem; }
+
+  .history-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--dim);
+    animation: fadeUp 0.3s ease;
+  }
+
+  .history-time-val { font-size: 1.1rem; font-weight: 700; }
+
+  .history-item.green-item  { border-left: 3px solid var(--green);  .history-time-val { color: var(--green); } }
+  .history-item.orange-item { border-left: 3px solid var(--orange); .history-time-val { color: var(--orange); } }
+  .history-item.red-item    { border-left: 3px solid var(--red);    .history-time-val { color: var(--red); } }
+
+  .empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+  }
+
+  /* Error */
+  .error-box {
+    background: rgba(255,63,91,0.08);
+    border: 1px solid rgba(255,63,91,0.3);
+    border-radius: 2px;
+    padding: 1rem;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--red);
+    margin-top: 1rem;
+    display: none;
+  }
+
+  /* API url hint */
+  .api-hint {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-top: 0.75rem;
+    text-align: center;
+  }
+
+  .api-hint a { color: var(--green); text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="logo">
+      <span class="logo-mark">▸ Traffic Intelligence System</span>
+      <h1>Traffic<span>IQ</span></h1>
+    </div>
+    <div class="status-badge">
+      <span class="dot"></span>
+      <span id="api-status">Connecting to API...</span>
+    </div>
+  </header>
+
+  <div class="grid">
+
+    <!-- Input Form -->
+    <div class="card">
+      <div class="card-title">Intersection Parameters</div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Day</label>
+          <select id="day">
+            <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
+            <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Hour (0–23)</label>
+          <input type="number" id="hour" value="8" min="0" max="23">
+        </div>
+        <div class="field">
+          <label>Month</label>
+          <input type="number" id="month" value="6" min="1" max="12">
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Weather</label>
+          <select id="weather">
+            <option>Clear</option><option>Cloudy</option><option>Rainy</option>
+            <option>Foggy</option><option>Stormy</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Area Type</label>
+          <select id="area">
+            <option>Commercial</option><option>Residential</option><option>Industrial</option>
+            <option>School Zone</option><option>Highway</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Traffic Density</label>
+          <select id="density">
+            <option>Low</option><option>Medium</option><option>High</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Cars</label>
+          <input type="number" id="cars" value="30" min="0" max="200">
+        </div>
+        <div class="field">
+          <label>Bikes</label>
+          <input type="number" id="bikes" value="20" min="0" max="200">
+        </div>
+        <div class="field">
+          <label>Trucks</label>
+          <input type="number" id="trucks" value="5" min="0" max="100">
+        </div>
+      </div>
+
+      <button class="predict-btn" id="predict-btn" onclick="predict()">
+        <span id="btn-text">Predict Signal Wait</span>
+        <div class="spinner" id="btn-spinner"></div>
+      </button>
+
+      <div class="error-box" id="error-box"></div>
+      <div class="api-hint">API running at <a href="http://localhost:5000" target="_blank">localhost:5000</a></div>
+    </div>
+
+    <!-- History -->
+    <div class="card">
+      <div class="card-title">Prediction History</div>
+      <div id="history-list" class="history-list">
+        <div class="empty-state">// No predictions yet</div>
+      </div>
+    </div>
+
+    <!-- Result -->
+    <div class="card result-card" id="result-card">
+      <div class="card-title">Prediction Result</div>
+      <div class="result-main">
+        <div>
+          <div class="big-number" id="result-number">--</div>
+          <span class="big-unit">SECONDS WAIT</span>
+        </div>
+        <div class="result-meta">
+          <div class="traffic-level" id="traffic-level">
+            <span class="level-dot" id="level-dot"></span>
+            <span id="level-text">—</span>
+          </div>
+          <div class="advice-text" id="advice-text">—</div>
+        </div>
+      </div>
+
+      <div class="gauge-wrap">
+        <div class="gauge-label">
+          <span>Wait intensity</span>
+          <span id="gauge-pct">0%</span>
+        </div>
+        <div class="gauge-track">
+          <div class="gauge-fill" id="gauge-fill" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /grid -->
+</div><!-- /container -->
+
+<script>
+  const API = "http://localhost:5000";
+
+  // Check API health on load
+  async function checkHealth() {
+    try {
+      const r = await fetch(`${API}/health`);
+      const d = await r.json();
+      document.getElementById("api-status").textContent =
+        d.status === "ok" ? "API Online" : "API Error";
+    } catch {
+      document.getElementById("api-status").textContent = "API Offline — start Flask first";
+      document.querySelector(".dot").style.background = "#ff3f5b";
+      document.querySelector(".dot").style.boxShadow = "0 0 8px #ff3f5b";
+    }
+  }
+
+  const history = [];
+
+  async function predict() {
+    const btn    = document.getElementById("predict-btn");
+    const spinner = document.getElementById("btn-spinner");
+    const btnText = document.getElementById("btn-text");
+    const errBox  = document.getElementById("error-box");
+
+    btn.disabled   = true;
+    spinner.style.display = "block";
+    btnText.style.display = "none";
+    errBox.style.display  = "none";
+
+    const payload = {
+      Day:             document.getElementById("day").value,
+      Hour:            parseInt(document.getElementById("hour").value),
+      Month:           parseInt(document.getElementById("month").value),
+      Weather:         document.getElementById("weather").value,
+      Area_Type:       document.getElementById("area").value,
+      Traffic_Density: document.getElementById("density").value,
+      Car_Count:       parseInt(document.getElementById("cars").value),
+      Bike_Count:      parseInt(document.getElementById("bikes").value),
+      Truck_Count:     parseInt(document.getElementById("trucks").value),
+      Is_Weekend:      ["Saturday","Sunday"].includes(document.getElementById("day").value) ? 1 : 0
+    };
+
+    try {
+      const res  = await fetch(`${API}/predict`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+
+      if (data.status === "error") throw new Error(data.error);
+
+      showResult(data, payload);
+      addHistory(data, payload);
+    } catch (err) {
+      errBox.textContent   = "Error: " + err.message;
+      errBox.style.display = "block";
+    } finally {
+      btn.disabled          = false;
+      spinner.style.display = "none";
+      btnText.style.display = "block";
+    }
+  }
+
+  function showResult(data, payload) {
+    const secs    = data.predicted_waiting_time_seconds;
+    const advice  = data.advice;
+    const color   = advice.color; // green | orange | red
+
+    document.getElementById("result-card").classList.add("visible");
+    document.getElementById("result-number").textContent = secs;
+    document.getElementById("result-number").style.color =
+      color === "green" ? "var(--green)" : color === "orange" ? "var(--orange)" : "var(--red)";
+
+    document.getElementById("level-text").textContent  = advice.level + " Traffic";
+    document.getElementById("advice-text").textContent = advice.message;
+
+    const levelEl = document.getElementById("traffic-level");
+    const dotEl   = document.getElementById("level-dot");
+    levelEl.className = `traffic-level ${color}-level`;
+    dotEl.className   = `level-dot ${color}`;
+
+    // Gauge: 0-180s range
+    const pct = Math.min(100, Math.round((secs / 180) * 100));
+    document.getElementById("gauge-fill").style.width = pct + "%";
+    document.getElementById("gauge-fill").style.background =
+      color === "green" ? "var(--green)" : color === "orange" ? "var(--orange)" : "var(--red)";
+    document.getElementById("gauge-pct").textContent = pct + "%";
+  }
+
+  function addHistory(data, payload) {
+    const secs   = data.predicted_waiting_time_seconds;
+    const color  = data.advice.color;
+    history.unshift({ secs, color, label: `${payload.Area_Type} · ${payload.Day} ${payload.Hour}:00` });
+    if (history.length > 6) history.pop();
+
+    const container = document.getElementById("history-list");
+    container.innerHTML = history.map(h => `
+      <div class="history-item ${h.color}-item">
+        <span>${h.label}</span>
+        <span class="history-time-val" style="color:var(--${h.color})">${h.secs}s</span>
+      </div>
+    `).join("");
+  }
+
+  checkHealth();
+</script>
+</body>
+</html>

@@ -1,0 +1,42 @@
+{
+  "features": [
+    "Day",
+    "Weather",
+    "Area_Type",
+    "Traffic_Density",
+    "Time_Period",
+    "Hour",
+    "Month",
+    "Is_Weekend",
+    "Car_Count",
+    "Bike_Count",
+    "Truck_Count",
+    "Total_Vehicles",
+    "Truck_Ratio",
+    "Rush_x_Density"
+  ],
+  "categorical_features": [
+    "Day",
+    "Weather",
+    "Area_Type",
+    "Traffic_Density",
+    "Time_Period"
+  ],
+  "numerical_features": [
+    "Hour",
+    "Month",
+    "Is_Weekend",
+    "Car_Count",
+    "Bike_Count",
+    "Truck_Count",
+    "Total_Vehicles",
+    "Truck_Ratio",
+    "Rush_x_Density"
+  ],
+  "metrics": {
+    "rmse": 18.7,
+    "mae": 12.16,
+    "r2": 0.8286
+  },
+  "model_type": "GradientBoostingRegressor"
+}
